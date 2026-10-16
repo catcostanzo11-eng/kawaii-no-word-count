@@ -2,6 +2,8 @@
 
 A cozy, goal-based word counter with themes, a Pomodoro timer and background music.
 
+**✨ Try it: https://catcostanzo11-eng.github.io/kawaii-no-word-count/**
+
 ## Run it
 
 Double-clicking `index.html` works for almost everything. For YouTube embeds, serve the folder over http, because YouTube refuses to play inside pages opened from `file://`:
