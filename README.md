@@ -1,20 +1,26 @@
-# Kawaii Word Count 🌸
+<p align="center"><img src="icons/icon-192.png" width="96" alt=""></p>
+
+# Kawaii no Word Count! 🌸
 
 A cozy, goal-based word counter with themes, a Pomodoro timer and background music.
 
-**✨ Try it: https://catcostanzo11-eng.github.io/kawaii-no-word-count/**
+**✨ Try it in your browser: https://catcostanzo11-eng.github.io/kawaii-no-word-count/**
 
-## Run it
+## Get the app
 
-Double-clicking `index.html` works for almost everything. For YouTube embeds, serve the folder over http, because YouTube refuses to play inside pages opened from `file://`:
+### Windows desktop app
 
-```sh
-npx serve .
-# or
-python -m http.server 8000
-```
+1. Go to the [latest release](https://github.com/catcostanzo11-eng/kawaii-no-word-count/releases/latest).
+2. Download `Kawaii-no-Word-Count-Setup-x.y.z.exe` and run it.
+3. Windows may show a blue "Windows protected your PC" screen because the app isn't code-signed. Click **More info**, then **Run anyway**.
 
-Then open the printed address (for example http://localhost:8000).
+### Install from the browser (Windows, Mac, Chromebook, Android, iPhone)
+
+- **Chrome or Edge:** open the [live site](https://catcostanzo11-eng.github.io/kawaii-no-word-count/) and click **⬇️ Install app** in the header, or the install icon in the address bar.
+- **iPhone / iPad (Safari):** tap Share, then **Add to Home Screen**.
+- **Android (Chrome):** tap the ⋮ menu, then **Install app**.
+
+The installed app works offline and updates itself.
 
 ## Features
 
@@ -23,7 +29,24 @@ Then open the printed address (for example http://localhost:8000).
 - "Wrote somewhere else?" to log words written outside the app
 - NaNoWriMo mode: fall theme with 1,667/day and 50,000 by Nov 30. Your previous goals come back when you turn it off.
 - Pomodoro timer: work up to 60 min, break up to 25 min, with a chime and a tomato count
-- Spotify / YouTube player: paste a track, album, playlist or video link
+- Spotify / YouTube player: paste a track, album, playlist, video or livestream link
 - 10 themes, each with light and dark mode
 
-Everything is saved in your browser's localStorage. Nothing is sent anywhere.
+Everything is saved on your own device. Nothing is sent anywhere.
+
+## Development
+
+The app is plain HTML, CSS and JavaScript (`index.html`, `style.css`, `app.js`). The desktop app wraps the same files with [Electron](https://www.electronjs.org/) (`main.js`).
+
+```sh
+npm install
+npm start        # run the desktop app
+npm run dist     # build the Windows installer into dist/
+npm run icons    # regenerate icons from scripts/make-icons.mjs
+```
+
+To try the web version locally, serve the folder over http (YouTube embeds don't play from `file://`):
+
+```sh
+npx serve .
+```

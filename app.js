@@ -112,6 +112,8 @@
 
   const state = load();
   if (!THEMES[state.theme]) state.theme = 'kawaii';
+  // The old lofi preset pointed at a stream that has since ended; move it to the channel's live link.
+  if (/jfKfPfyJRdk/.test(state.music)) state.music = 'https://www.youtube.com/channel/UCSJ4gkVC6NrvII8umztf0Ow/live';
 
   let saveTimer = null;
   function save(showIndicator) {
@@ -486,7 +488,7 @@
     $('ringFill').style.strokeDashoffset = RING * (1 - pomo.remaining / phaseTotal());
     $('pomoStart').textContent = pomo.running ? '⏸ Pause' : '▶ Start';
     document.querySelector('.pomo-card').classList.toggle('break', pomo.phase === 'break');
-    document.title = pomo.running ? `${mm}:${ss} · ${pomo.phase === 'work' ? 'Focus' : 'Break'} · Kawaii Word Count` : 'Kawaii Word Count';
+    document.title = pomo.running ? `${mm}:${ss} · ${pomo.phase === 'work' ? 'Focus' : 'Break'} · Kawaii no Word Count!` : 'Kawaii no Word Count!';
 
     const n = state.pomos[dateKey()] || 0;
     $('pomoCount').textContent = n
@@ -614,6 +616,16 @@
     let id = null;
     if (host === 'youtu.be') id = url.pathname.slice(1).split('/')[0];
     else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+      // A channel's live page (/channel/UC…/live) embeds whatever that channel is streaming now,
+      // so it keeps working when a 24/7 stream restarts with a new video ID.
+      const channel = url.pathname.match(/^\/channel\/(UC[\w-]{22})(?:\/live)?\/?$/);
+      if (channel) {
+        return { kind: 'youtube', src: `https://www.youtube.com/embed/live_stream?channel=${channel[1]}&rel=0` };
+      }
+      // @handle and /c/ links can't be turned into an embed without YouTube's API.
+      if (/^\/(?:@[\w.-]+|c\/[\w.-]+|user\/[\w.-]+)(?:\/live)?\/?$/.test(url.pathname)) {
+        return { kind: 'youtube', linkOnly: true };
+      }
       id = url.searchParams.get('v');
       const m = url.pathname.match(/^\/(?:embed|live|shorts)\/([\w-]+)/);
       if (!id && m) id = m[1];
@@ -638,7 +650,7 @@
     }
 
     // Inside an embedded frame (like a published artifact) players can't load, so link out instead.
-    if (!CAN_EMBED) {
+    if (!CAN_EMBED || embed.linkOnly) {
       const a = document.createElement('a');
       a.className = 'btn open-link';
       a.href = raw.trim();
@@ -647,7 +659,9 @@
       a.textContent = embed.kind === 'spotify' ? '🎵 Open in Spotify ↗' : '▶ Open in YouTube ↗';
       const note = document.createElement('p');
       note.className = 'hint';
-      note.textContent = 'Opens in a new tab. Keep it playing while you write here.';
+      note.textContent = embed.linkOnly && CAN_EMBED
+        ? 'Channel links can’t play here. Open the stream and paste its own link (youtube.com/watch?v=… or youtube.com/live/…) to play it inside the app.'
+        : 'Opens in a new tab. Keep it playing while you write here.';
       $('player').replaceChildren(a, note);
       return;
     }
@@ -722,6 +736,31 @@
     $('musicUrl').value = state.music;
     playMusic(state.music, false);
   }
+
+  // ---------- installable app ----------
+  // Offline support only on the hosted https site (not file://, the desktop app or embedded previews).
+  if ('serviceWorker' in navigator && location.protocol === 'https:' && CAN_EMBED) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline mode just won't be available */ });
+  }
+
+  // Chrome/Edge let the page offer its own Install button.
+  let installPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    $('installBtn').hidden = false;
+  });
+  $('installBtn').addEventListener('click', async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice.catch(() => null);
+    installPrompt = null;
+    $('installBtn').hidden = true;
+  });
+  window.addEventListener('appinstalled', () => {
+    $('installBtn').hidden = true;
+    toast('Installed! Find Kawaii no Word Count with your other apps 🌸');
+  });
 
   // roll the day over if the tab stays open past midnight
   let currentDay = dateKey();

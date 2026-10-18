@@ -1,0 +1,49 @@
+{
+  "name": "kawaii-no-word-count",
+  "productName": "Kawaii no Word Count",
+  "version": "1.0.0",
+  "description": "A cozy, kawaii goal-based word counter with NaNoWriMo mode, Pomodoro timer, music and 10 themes",
+  "main": "main.js",
+  "author": "catcostanzo11-eng",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "icons": "node scripts/make-icons.mjs",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "io.github.catcostanzo11-eng.kawaii-no-word-count",
+    "productName": "Kawaii no Word Count",
+    "files": [
+      "main.js",
+      "index.html",
+      "style.css",
+      "app.js",
+      "manifest.webmanifest",
+      "sw.js",
+      "icons/**"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Kawaii-no-Word-Count-Setup-${version}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "sharp": "^0.35.5"
+  },
+  "allowScripts": {
+    "electron@44.9.0": true
+  }
+}
