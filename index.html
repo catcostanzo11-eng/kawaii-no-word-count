@@ -11,24 +11,26 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&family=Fredoka:wght@400;600&family=Lora:wght@400;600&family=Nunito:wght@400;700&family=Orbitron:wght@500;700&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=EB+Garamond:wght@400;600&family=Fredoka:wght@400;600&family=Lora:wght@400;600&family=Nunito:wght@400;700&family=Orbitron:wght@500;700&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <a class="skip-link" href="#editor">Skip to writing</a>
   <div class="deco" id="deco" aria-hidden="true"></div>
 
   <header class="topbar">
     <div class="brand">
-      <span class="mascot" id="mascot">🐰</span>
+      <span class="mascot" id="mascot" aria-hidden="true">🐰</span>
       <div>
         <h1>Kawaii no Word Count!</h1>
         <p class="tagline" id="tagline">one cozy word at a time</p>
       </div>
     </div>
     <div class="top-actions">
-      <button class="chip" id="installBtn" type="button" hidden>⬇️ Install app</button>
-      <button class="chip" id="nanoBtn" type="button">🍂 NaNoWriMo</button>
-      <button class="chip" id="decorBtn" type="button" aria-expanded="false" aria-controls="decorPanel">🎀 Decorate</button>
+      <button class="chip" id="installBtn" type="button" hidden><span aria-hidden="true">⬇️</span> Install app</button>
+      <button class="chip" id="nanoBtn" type="button" aria-pressed="false"><span aria-hidden="true">🍂</span> NaNoWriMo</button>
+      <button class="chip" id="decorBtn" type="button" aria-expanded="false" aria-controls="decorPanel"><span aria-hidden="true">🎀</span> Decorate</button>
+      <button class="chip" id="a11yBtn" type="button" aria-expanded="false" aria-controls="a11yPanel"><span aria-hidden="true">Aa</span> Accessibility</button>
       <button class="icon-btn" id="modeBtn" type="button" aria-label="Toggle dark mode">🌙</button>
     </div>
   </header>
@@ -38,45 +40,91 @@
     <div class="swatches" id="swatches"></div>
   </div>
 
+  <div class="decor-panel card a11y-panel" id="a11yPanel" hidden>
+    <h2>Make it comfy for you.</h2>
+    <div class="a11y-options">
+      <label class="switch">
+        <input type="checkbox" id="optEasyRead">
+        <span><b>Easy-read font</b><small>A very clear font with extra spacing. Helps with dyslexia and tired eyes.</small></span>
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="optMotion">
+        <span><b>Reduce motion</b><small>Stops floating decorations, confetti and wiggles.</small></span>
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="optSpell">
+        <span><b>Spelling underlines</b><small>Red squiggles under misspelled words. Right-click one for fixes.</small></span>
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="optSound">
+        <span><b>Sound effects</b><small>A little jingle when you reach a goal, and a chime when a Pomodoro ends.</small></span>
+      </label>
+      <fieldset class="size-pick">
+        <legend><b>Text size</b></legend>
+        <label><input type="radio" name="textSize" value="normal"> Normal</label>
+        <label><input type="radio" name="textSize" value="large"> Large</label>
+        <label><input type="radio" name="textSize" value="xl"> Extra large</label>
+      </fieldset>
+    </div>
+  </div>
+
   <main class="layout">
-    <section class="card editor-card">
+    <section class="card editor-card" aria-label="Writing">
       <div class="editor-head">
-        <input id="title" class="title-input" type="text" placeholder="Untitled masterpiece ✨" maxlength="80">
+        <input id="title" class="title-input" type="text" placeholder="Untitled masterpiece ✨" maxlength="80" aria-label="Title">
         <div class="stats">
           <div class="stat"><strong id="wordCount">0</strong><span>words</span></div>
           <div class="stat"><strong id="charCount">0</strong><span>characters</span></div>
           <div class="stat"><strong id="readTime">0</strong><span>min read</span></div>
         </div>
       </div>
-      <textarea id="editor" spellcheck="true" placeholder="Once upon a time..."></textarea>
+      <textarea id="editor" spellcheck="true" placeholder="Once upon a time..." aria-label="Your writing"></textarea>
       <div class="editor-foot">
-        <button class="btn ghost" id="copyBtn" type="button">📋 Copy text</button>
-        <button class="btn ghost" id="clearBtn" type="button">🧹 Clear</button>
+        <button class="btn ghost" id="copyBtn" type="button"><span aria-hidden="true">📋</span> Copy text</button>
+        <button class="btn ghost" id="clearBtn" type="button"><span aria-hidden="true">🧹</span> Clear</button>
+        <button class="btn ghost" id="grammarBtn" type="button" aria-controls="grammarPanel"><span aria-hidden="true">✍️</span> Check grammar</button>
         <span class="saved" id="saved">saved ✨</span>
       </div>
+
+      <section class="grammar" id="grammarPanel" aria-labelledby="grammarTitle" hidden>
+        <div class="grammar-head">
+          <h2 id="grammarTitle"><span aria-hidden="true">✍️</span> Grammar suggestions</h2>
+          <button class="icon-btn small" id="grammarClose" type="button" aria-label="Close grammar suggestions">✕</button>
+        </div>
+        <div class="grammar-consent" id="grammarConsent" hidden>
+          <p>Grammar check sends the text you're checking to <b>LanguageTool</b>, a free online grammar checker, so it needs the internet. Spelling suggestions (right-click a red squiggle) stay on your computer.</p>
+          <p class="hint"><a href="https://languagetool.org/legal/privacy" target="_blank" rel="noopener">LanguageTool's privacy policy ↗</a></p>
+          <div class="grammar-consent-actions">
+            <button class="btn" id="grammarAgree" type="button">Okay, check my writing</button>
+            <button class="btn ghost" id="grammarDecline" type="button">Not now</button>
+          </div>
+        </div>
+        <p class="grammar-status" id="grammarStatus" role="status" aria-live="polite"></p>
+        <ol class="grammar-list" id="grammarList"></ol>
+      </section>
     </section>
 
     <aside class="side">
       <section class="card">
-        <h2>🎯 Goals</h2>
+        <h2><span aria-hidden="true">🎯</span> Goals</h2>
 
         <div class="goal">
-          <div class="goal-row"><span>Today</span><span><b id="todayWords">0</b> / <span id="dailyGoalLabel">500</span></span></div>
-          <div class="bar"><div class="fill" id="dailyFill"></div></div>
+          <div class="goal-row"><span id="dailyLabel">Today</span><span><b id="todayWords">0</b> / <span id="dailyGoalLabel">500</span></span></div>
+          <div class="bar" id="dailyBar" role="progressbar" aria-labelledby="dailyLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="fill" id="dailyFill"></div></div>
         </div>
 
         <div class="goal">
-          <div class="goal-row"><span>Project</span><span><b id="projectWords">0</b> / <span id="projectGoalLabel">10,000</span></span></div>
-          <div class="bar"><div class="fill" id="projectFill"></div></div>
+          <div class="goal-row"><span id="projectLabel">Project</span><span><b id="projectWords">0</b> / <span id="projectGoalLabel">10,000</span></span></div>
+          <div class="bar" id="projectBar" role="progressbar" aria-labelledby="projectLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="fill" id="projectFill"></div></div>
           <p class="hint" id="deadlineInfo"></p>
         </div>
 
         <div class="streaks">
-          <div class="pill">🔥 <b id="streak">0</b> day streak</div>
-          <div class="pill">🏆 best day <b id="bestDay">0</b></div>
+          <div class="pill"><span aria-hidden="true">🔥</span> <b id="streak">0</b> day streak</div>
+          <div class="pill"><span aria-hidden="true">🏆</span> best day <b id="bestDay">0</b></div>
         </div>
 
-        <div class="chart" id="chart" aria-label="Words written over the last 14 days"></div>
+        <div class="chart" id="chart" role="img" aria-label="Words written over the last 14 days"></div>
 
         <details class="settings">
           <summary>Goal settings</summary>
@@ -87,11 +135,12 @@
             <label>Wrote somewhere else? <input id="logWords" type="number" min="1" max="99000" placeholder="words"></label>
             <button class="btn" id="logBtn" type="button">+ Add</button>
           </div>
+          <button class="btn ghost preview-btn" id="celebrateTest" type="button">🎉 Preview celebration</button>
         </details>
       </section>
 
       <section class="card pomo-card">
-        <h2>🍅 Pomodoro</h2>
+        <h2><span aria-hidden="true">🍅</span> Pomodoro</h2>
         <div class="ring-wrap">
           <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
             <circle class="ring-track" cx="60" cy="60" r="54"></circle>
@@ -115,14 +164,14 @@
       </section>
 
       <section class="card">
-        <h2>🎧 Cozy sounds</h2>
+        <h2><span aria-hidden="true">🎧</span> Cozy sounds</h2>
         <form class="music-form" id="musicForm">
-          <input id="musicUrl" type="url" placeholder="Paste a Spotify or YouTube link">
+          <input id="musicUrl" type="url" placeholder="Paste a Spotify or YouTube link" aria-label="Spotify or YouTube link">
           <button class="btn" type="submit">Play</button>
         </form>
         <div class="presets">
-          <button class="chip small" type="button" data-url="https://www.youtube.com/channel/UCSJ4gkVC6NrvII8umztf0Ow/live">☕ lofi beats</button>
-          <button class="chip small" type="button" id="musicClear">✕ remove</button>
+          <button class="chip small" type="button" data-url="https://www.youtube.com/channel/UCSJ4gkVC6NrvII8umztf0Ow/live"><span aria-hidden="true">☕</span> lofi beats</button>
+          <button class="chip small" type="button" id="musicClear"><span aria-hidden="true">✕</span> remove</button>
         </div>
         <p class="hint error" id="musicError" hidden>Hmm, that doesn't look like a Spotify or YouTube link.</p>
         <div class="player" id="player"></div>

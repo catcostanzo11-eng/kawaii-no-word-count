@@ -31,8 +31,11 @@ The installed app works offline and updates itself.
 - Pomodoro timer: work up to 60 min, break up to 25 min, with a chime and a tomato count
 - Spotify / YouTube player: paste a track, album, playlist, video or livestream link
 - 10 themes, each with light and dark mode
+- Spelling suggestions: misspelled words get a red squiggle; right-click one for fixes or "Add to dictionary"
+- Grammar suggestions: press **Check grammar** to get fixes you can apply with one click (Ctrl+Z undoes them). Checks your selection, or your whole draft (the most recent ~3,000 words for long drafts)
+- Accessibility options: easy-read font (Atkinson Hyperlegible), larger text sizes, reduce motion, and spelling underlines on/off. Colours are adjusted automatically so text stays readable (WCAG AA) in every theme, and the app works with a keyboard and screen readers
 
-Everything is saved on your own device. Nothing is sent anywhere.
+Everything is saved on your own device. The only time anything leaves your computer is when you press **Check grammar**: the text being checked is sent to [LanguageTool](https://languagetool.org)'s free grammar service (the app asks first). Spelling suggestions run on your device. In the desktop app, the spelling dictionary is downloaded once the first time it's used.
 
 ## Development
 

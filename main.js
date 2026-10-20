@@ -64,7 +64,43 @@ async function createWindow() {
     backgroundColor: '#fff0f6',
     autoHideMenuBar: true,
     show: false,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true },
+  });
+
+  // Right-click menu: spelling fixes for the word under the cursor, plus the usual edit actions.
+  // (Electron has no context menu of its own, so without this right-click does nothing.)
+  win.webContents.on('context-menu', (_e, params) => {
+    const items = [];
+    if (params.misspelledWord) {
+      for (const word of params.dictionarySuggestions.slice(0, 6)) {
+        items.push({ label: word, click: () => win.webContents.replaceMisspelling(word) });
+      }
+      if (!params.dictionarySuggestions.length) items.push({ label: 'No spelling suggestions', enabled: false });
+      items.push(
+        { type: 'separator' },
+        {
+          label: `Add “${params.misspelledWord}” to dictionary`,
+          click: () => win.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord),
+        },
+        { type: 'separator' }
+      );
+    }
+    if (params.isEditable) {
+      const f = params.editFlags;
+      items.push(
+        { role: 'undo', enabled: f.canUndo },
+        { role: 'redo', enabled: f.canRedo },
+        { type: 'separator' },
+        { role: 'cut', enabled: f.canCut },
+        { role: 'copy', enabled: f.canCopy },
+        { role: 'paste', enabled: f.canPaste },
+        { type: 'separator' },
+        { role: 'selectAll' }
+      );
+    } else if (params.selectionText.trim()) {
+      items.push({ role: 'copy' });
+    }
+    if (items.length) Menu.buildFromTemplate(items).popup({ window: win });
   });
 
   // Links like "Open in YouTube" go to the default browser instead of a new app window.

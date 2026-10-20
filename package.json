@@ -1,7 +1,7 @@
 {
   "name": "kawaii-no-word-count",
   "productName": "Kawaii no Word Count",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A cozy, kawaii goal-based word counter with NaNoWriMo mode, Pomodoro timer, music and 10 themes",
   "main": "main.js",
   "author": "catcostanzo11-eng",

@@ -1,7 +1,7 @@
 // Offline support for the installed web app.
 // App files: network first (so updates show up right away), cache as the offline fallback.
 // Google Fonts: cache first, since font files never change.
-const CACHE = 'kawaii-v1';
+const CACHE = 'kawaii-v2';
 const CORE = [
   './',
   'index.html',

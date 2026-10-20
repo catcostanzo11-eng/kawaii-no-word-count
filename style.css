@@ -14,6 +14,11 @@
   --radius: 24px;
   --shadow: 0 10px 30px color-mix(in srgb, var(--accent) 16%, transparent);
   --soft: color-mix(in srgb, var(--accent) 12%, var(--card));
+  /* readable versions of the palette, recalculated per theme by app.js */
+  --accent-text: #c2185b;
+  --btn-bg: #c93a7a;
+  --focus: #7c5cd6;
+  --field-border: #c48aa5;
 }
 /* Kawaii dark defaults for the first frame, before app.js applies the saved theme. */
 @media (prefers-color-scheme: dark) {
@@ -100,7 +105,7 @@ button, input, textarea { font: inherit; color: inherit; }
   transition: transform 0.15s, background 0.2s, border-color 0.2s;
 }
 .chip:hover, .icon-btn:hover { transform: translateY(-2px); border-color: var(--accent); }
-.chip.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.chip.active { background: var(--btn-bg); color: var(--on-accent); border-color: var(--btn-bg); }
 .chip.small { padding: 4px 10px; font-size: 0.85rem; }
 .icon-btn { width: 44px; height: 44px; padding: 0; font-size: 1.2rem; }
 
@@ -203,7 +208,7 @@ button, input, textarea { font: inherit; color: inherit; }
   text-align: center;
   min-width: 72px;
 }
-.stat strong { display: block; font-size: 1.3rem; color: var(--accent); }
+.stat strong { display: block; font-size: 1.3rem; color: var(--accent-text); }
 .stat span { font-size: 0.75rem; color: var(--muted); }
 
 #editor {
@@ -229,8 +234,8 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* ---------- buttons & inputs ---------- */
 .btn {
-  border: 2px solid var(--accent);
-  background: var(--accent);
+  border: 2px solid var(--btn-bg);
+  background: var(--btn-bg);
   color: var(--on-accent);
   border-radius: 999px;
   padding: 8px 16px;
@@ -246,23 +251,24 @@ button, input, textarea { font: inherit; color: inherit; }
 
 input[type="number"], input[type="date"], input[type="url"] {
   width: 100%;
-  border: 2px solid var(--border);
+  border: 2px solid var(--field-border);
   border-radius: 12px;
   padding: 7px 10px;
   background: color-mix(in srgb, var(--bg) 50%, var(--card));
   outline: none;
 }
-input:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent2); outline-offset: 2px; }
+input:focus-visible, button:focus-visible, summary:focus-visible, a:focus-visible, .issue:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--btn-bg); width: 1.15em; height: 1.15em; }
 input[type="date"] { color-scheme: light; }
 [data-mode="dark"] input[type="date"] { color-scheme: dark; }
 
 .hint { margin: 8px 0 0; font-size: 0.85rem; color: var(--muted); }
-.hint.error { color: var(--accent); }
+.hint.error { color: var(--accent-text); }
 
 /* ---------- goals ---------- */
 .goal { margin-bottom: 16px; }
 .goal-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.95rem; }
-.goal-row b { color: var(--accent); }
+.goal-row b { color: var(--accent-text); }
 .bar {
   height: 16px;
   border-radius: 999px;
@@ -351,6 +357,8 @@ input[type="date"] { color-scheme: light; }
 
 /* ---------- celebration + toast ---------- */
 .burst { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
+.burst canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.preview-btn { margin-top: 12px; width: 100%; }
 .burst span {
   position: absolute;
   top: -40px;
@@ -366,7 +374,7 @@ input[type="date"] { color-scheme: light; }
   left: 50%;
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   transform: translate(-50%, 30px);
-  background: var(--accent);
+  background: var(--btn-bg);
   color: var(--on-accent);
   padding: 10px 18px;
   border-radius: 999px;
@@ -381,7 +389,121 @@ input[type="date"] { color-scheme: light; }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* ---------- grammar suggestions ---------- */
+.grammar {
+  margin-top: 16px;
+  border-top: 2px dashed var(--border);
+  padding-top: 14px;
+}
+.grammar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.grammar-head h2 { margin: 0; }
+.icon-btn.small { width: 36px; height: 36px; font-size: 1rem; }
+.grammar-consent {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--soft);
+}
+.grammar-consent p { margin: 0 0 8px; line-height: 1.5; }
+.grammar-consent a { color: var(--accent-text); }
+.grammar-consent-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.grammar-status { margin: 10px 0 0; color: var(--muted); font-size: 0.95rem; }
+.grammar-status:empty { display: none; }
+.grammar-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.issue {
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg) 40%, var(--card));
+}
+.issue-msg { margin: 0 0 6px; font-weight: 700; }
+.issue-context { margin: 0 0 10px; color: var(--muted); font-size: 0.95rem; overflow-wrap: anywhere; }
+.issue-context mark {
+  color: var(--text);
+  background: transparent;
+  text-decoration: underline wavy var(--accent-text);
+  text-underline-offset: 3px;
+  font-weight: 700;
+}
+.issue-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn.small { padding: 5px 12px; font-size: 0.9rem; }
+
+/* ---------- accessibility ---------- */
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -60px;
+  z-index: 50;
+  padding: 10px 16px;
+  border-radius: 0 0 14px 14px;
+  background: var(--btn-bg);
+  color: var(--on-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+.skip-link:focus { top: 0; }
+
+.a11y-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.switch, .size-pick {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg) 40%, var(--card));
+  cursor: pointer;
+}
+.switch input { margin-top: 3px; flex: none; }
+.switch span { display: flex; flex-direction: column; gap: 2px; }
+.switch small { color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
+.size-pick { flex-direction: column; gap: 6px; margin: 0; cursor: default; }
+.size-pick legend { float: left; padding: 0; margin-bottom: 2px; }
+.size-pick label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+
+/* text size (rem-based sizes scale with this) */
+:root[data-text-size="large"] { font-size: 112.5%; }
+:root[data-text-size="xl"] { font-size: 125%; }
+
+/* easy-read: the font itself is swapped in app.js; this adds breathing room */
+:root[data-easy-read] body { letter-spacing: 0.02em; word-spacing: 0.08em; }
+:root[data-easy-read] #editor { line-height: 1.9; word-spacing: 0.12em; }
+:root[data-easy-read] .tagline,
+:root[data-easy-read] .hint,
+:root[data-easy-read] .switch small { line-height: 1.6; }
+
+/* reduced motion: follows the OS setting, or the in-app switch */
 @media (prefers-reduced-motion: reduce) {
   .deco span, .mascot, .fill { animation: none; }
   .deco { display: none; }
+}
+:root[data-motion="reduce"] .deco { display: none; }
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+:root[data-motion="reduce"] .chip:hover,
+:root[data-motion="reduce"] .icon-btn:hover,
+:root[data-motion="reduce"] .btn:hover,
+:root[data-motion="reduce"] .swatch:hover { transform: none; }
+
+/* Windows High Contrast / forced colours: keep controls outlined */
+@media (forced-colors: active) {
+  .btn, .chip, .icon-btn, .card, .issue, .switch, .size-pick { border: 2px solid CanvasText; }
+  .fill, .chart .b { background: Highlight; }
 }

@@ -99,6 +99,8 @@
     work: 25, brk: 5,
     pomos: {},           // { 'YYYY-MM-DD': completedWorkSessions }
     music: '',
+    grammarOk: false,    // agreed to send text to LanguageTool for grammar checks
+    a11y: { easyRead: false, motion: null, spell: true, textSize: 'normal' }, // motion: null = follow the OS
   };
 
   function load() {
@@ -112,6 +114,7 @@
 
   const state = load();
   if (!THEMES[state.theme]) state.theme = 'kawaii';
+  state.a11y = { ...DEFAULTS.a11y, ...state.a11y };
   // The old lofi preset pointed at a stream that has since ended; move it to the channel's live link.
   if (/jfKfPfyJRdk/.test(state.music)) state.music = 'https://www.youtube.com/channel/UCSJ4gkVC6NrvII8umztf0Ow/live';
 
@@ -136,6 +139,52 @@
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  }
+
+  // ---------- colour contrast ----------
+  // Theme colours are adjusted at runtime so text and buttons stay readable (WCAG AA)
+  // in every theme without hand-tuning each palette.
+  function parseColor(c, under) {
+    let m = c.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (m) {
+      const h = m[1].length === 3 ? m[1].replace(/./g, (x) => x + x) : m[1];
+      return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    }
+    m = c.match(/rgba?\(([^)]+)\)/);
+    if (!m) return [0, 0, 0];
+    const [r, g, b, a = 1] = m[1].split(',').map(Number);
+    if (a >= 1 || !under) return [r, g, b];
+    const u = parseColor(under);
+    return [r, g, b].map((v, i) => Math.round(v * a + u[i] * (1 - a)));
+  }
+  const toHex = (rgb) => '#' + rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+  const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t); // t = share of b
+
+  function luminance(rgb) {
+    const [r, g, b] = rgb.map((v) => {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  function contrast(a, b) {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  // Nudge fg toward black (on light backgrounds) or white (on dark) until it reaches the ratio.
+  function readable(fg, bgs, ratio) {
+    const target = luminance(bgs[0]) > 0.4 ? [0, 0, 0] : [255, 255, 255];
+    let c = fg;
+    for (let t = 0.04; t <= 1 && !bgs.every((bg) => contrast(c, bg) >= ratio); t += 0.04) c = mix(fg, target, t);
+    return c;
+  }
+  // Nudge a button colour until the text on it reaches the ratio.
+  function readableBehind(bg, fg, ratio) {
+    const target = luminance(fg) > 0.4 ? [0, 0, 0] : [255, 255, 255];
+    let c = bg;
+    for (let t = 0.04; t <= 1 && contrast(c, fg) < ratio; t += 0.04) c = mix(bg, target, t);
+    return c;
   }
 
   function countWords(text) {
@@ -165,10 +214,14 @@
     savedTimer = setTimeout(() => el.classList.remove('show'), 1200);
   }
 
-  function burst() {
+  const osReducedMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const reduceMotion = () => (state.a11y.motion === null ? osReducedMotion : state.a11y.motion);
+
+  function burst(count = 40) {
+    if (reduceMotion()) return;
     const box = $('burst');
     const emojis = THEMES[state.theme].deco;
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < count; i++) {
       const s = document.createElement('span');
       s.textContent = emojis[i % emojis.length];
       s.style.left = Math.random() * 100 + 'vw';
@@ -179,6 +232,103 @@
     }
   }
 
+  // Paper confetti in the current theme's colors, fired up from both bottom corners.
+  let confettiPieces = [];
+  let confettiFrame = 0;
+  function confetti(amount = 160) {
+    if (reduceMotion()) return;
+    const box = $('burst');
+    let canvas = box.querySelector('canvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      box.appendChild(canvas);
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const css = getComputedStyle(document.documentElement);
+    const colors = [
+      css.getPropertyValue('--accent').trim(),
+      css.getPropertyValue('--accent2').trim(),
+      '#ffd166', '#ffffff', '#ffb3d1', '#9ee6c9',
+    ].filter(Boolean);
+
+    for (let i = 0; i < amount; i++) {
+      const left = i % 2 === 0;
+      const angle = (left ? -60 : -120) + (Math.random() - 0.5) * 40; // degrees, aimed up and inward
+      const speed = 11 + Math.random() * 9;
+      confettiPieces.push({
+        x: left ? -10 : w + 10,
+        y: h * 0.9,
+        vx: Math.cos(angle * Math.PI / 180) * speed * (w / 1200 + 0.5),
+        vy: Math.sin(angle * Math.PI / 180) * speed * (h / 900 + 0.4),
+        size: 7 + Math.random() * 7,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        shape: Math.random() < 0.18 ? 'circle' : 'rect',
+        rot: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.35,
+        wobble: Math.random() * Math.PI * 2,
+        life: 0,
+        delay: Math.floor(Math.random() * 12), // frames, so the pieces don't all leave at once
+      });
+    }
+
+    if (confettiFrame) return; // already animating; the new pieces join in
+    let last = performance.now();
+    const step = (now) => {
+      const dt = Math.min(2.5, (now - last) / 16.67); // 1 = one 60fps frame
+      last = now;
+      ctx.clearRect(0, 0, w, h);
+      for (const p of confettiPieces) {
+        if (p.delay > 0) { p.delay -= dt; continue; }
+        p.life += dt;
+        p.vy += 0.32 * dt;              // gravity
+        p.vx *= Math.pow(0.985, dt);    // air drag
+        p.vy *= Math.pow(0.985, dt);
+        p.wobble += 0.12 * dt;
+        p.x += (p.vx + Math.sin(p.wobble) * 0.8) * dt;
+        p.y += p.vy * dt;
+        p.rot += p.spin * dt;
+        ctx.save();
+        ctx.globalAlpha = p.life > 150 ? Math.max(0, 1 - (p.life - 150) / 40) : 1;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        if (p.shape === 'circle') {
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size / 2.4, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // scaling by cos(wobble) makes the paper look like it's flipping over
+          ctx.scale(1, Math.cos(p.wobble));
+          ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        }
+        ctx.restore();
+      }
+      confettiPieces = confettiPieces.filter((p) => p.life < 190 && p.y < h + 40);
+      if (confettiPieces.length) {
+        confettiFrame = requestAnimationFrame(step);
+      } else {
+        confettiFrame = 0;
+        ctx.clearRect(0, 0, w, h);
+      }
+    };
+    confettiFrame = requestAnimationFrame(step);
+  }
+
+  // Goal reached: jingle + confetti. `big` is for the project goal.
+  function celebrate(big = false) {
+    unlockAudio(); // typing or clicking counts as a gesture, so sound is allowed here
+    tada(big);
+    confetti(big ? 260 : 160);
+    burst(big ? 24 : 12);
+  }
+
   // ---------- theme & mode ----------
   function applyTheme() {
     const t = THEMES[state.theme];
@@ -187,8 +337,23 @@
     for (const [k, v] of Object.entries(palette)) {
       root.style.setProperty('--' + k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()), v);
     }
-    root.style.setProperty('--font-display', `${t.display}, system-ui, sans-serif`);
-    root.style.setProperty('--font-body', `${t.body}, system-ui, sans-serif`);
+
+    // Readable versions of the palette (see "colour contrast"): text 4.5:1, outlines 3:1.
+    const bg = parseColor(palette.bg);
+    const card = parseColor(palette.card, palette.bg);
+    const accent = parseColor(palette.accent);
+    const surfaces = [card, bg, parseColor(palette.bg2), mix(card, accent, 0.12)];
+    const set = (name, rgb) => root.style.setProperty(name, toHex(rgb));
+    set('--text', readable(parseColor(palette.text), surfaces, 4.5));
+    set('--muted', readable(parseColor(palette.muted), surfaces, 4.5));
+    set('--accent-text', readable(accent, surfaces, 4.5));
+    set('--btn-bg', readableBehind(accent, parseColor(palette.onAccent), 4.8)); // a little extra for the gloss
+    set('--focus', readable(parseColor(palette.accent2), [card, bg], 3));
+    set('--field-border', readable(parseColor(palette.border), [card], 3));
+
+    const easy = state.a11y.easyRead ? "'Atkinson Hyperlegible', Verdana, " : '';
+    root.style.setProperty('--font-display', `${easy || t.display + ', '}system-ui, sans-serif`);
+    root.style.setProperty('--font-body', `${easy || t.body + ', '}system-ui, sans-serif`);
     root.dataset.mode = state.mode;
     root.dataset.palette = state.theme;
 
@@ -196,11 +361,14 @@
     $('tagline').textContent = t.tagline;
     $('modeBtn').textContent = state.mode === 'dark' ? '☀️' : '🌙';
     $('modeBtn').setAttribute('aria-label', state.mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-    $('nanoBtn').classList.toggle('active', state.theme === 'nanowrimo');
-    $('nanoBtn').textContent = state.theme === 'nanowrimo' ? '🍂 NaNoWriMo: on' : '🍂 NaNoWriMo';
+    const nanoOn = state.theme === 'nanowrimo';
+    $('nanoBtn').classList.toggle('active', nanoOn);
+    $('nanoBtn').setAttribute('aria-pressed', String(nanoOn));
+    $('nanoBtn').innerHTML = `<span aria-hidden="true">🍂</span> NaNoWriMo${nanoOn ? ': on' : ''}`;
 
     document.querySelectorAll('.swatch').forEach((el) => {
       el.classList.toggle('selected', el.dataset.theme === state.theme);
+      el.setAttribute('aria-pressed', String(el.dataset.theme === state.theme));
     });
     renderDeco();
   }
@@ -208,6 +376,7 @@
   function renderDeco() {
     const box = $('deco');
     box.innerHTML = '';
+    if (reduceMotion()) return;
     const emojis = THEMES[state.theme].deco;
     for (let i = 0; i < 16; i++) {
       const s = document.createElement('span');
@@ -265,8 +434,8 @@
       b.style.background = `linear-gradient(140deg, ${p.bg}, ${p.bg2})`;
       b.style.color = p.text;
       b.style.borderColor = p.border;
-      b.innerHTML = `<span class="emoji">${t.mascot}</span>
-        <span class="dots"><i style="background:${p.accent}"></i><i style="background:${p.accent2}"></i><i style="background:${t.dark.bg}"></i></span>
+      b.innerHTML = `<span class="emoji" aria-hidden="true">${t.mascot}</span>
+        <span class="dots" aria-hidden="true"><i style="background:${p.accent}"></i><i style="background:${p.accent2}"></i><i style="background:${t.dark.bg}"></i></span>
         <span class="name">${t.name}</span>`;
       b.addEventListener('click', () => setTheme(key));
       box.appendChild(b);
@@ -319,6 +488,7 @@
     if (!editor.value) return;
     if (!clearArmed) {
       btn.textContent = '⚠️ Tap again to clear';
+      toast('Press Clear again to erase all your writing');
       clearArmed = setTimeout(() => {
         clearArmed = null;
         btn.textContent = '🧹 Clear';
@@ -359,6 +529,8 @@
     $('projectWords').textContent = fmt(project);
     $('projectGoalLabel').textContent = fmt(state.projectGoal);
     $('projectFill').style.width = Math.min(100, (project / state.projectGoal) * 100) + '%';
+    setProgress('dailyBar', today, state.dailyGoal);
+    setProgress('projectBar', project, state.projectGoal);
 
     const remaining = Math.max(0, state.projectGoal - project);
     let info = remaining ? `${fmt(remaining)} words to go` : 'Project goal reached! 🎉';
@@ -378,6 +550,12 @@
 
     renderChart();
     checkCelebrations(today, project);
+  }
+
+  function setProgress(id, words, goal) {
+    const bar = $(id);
+    bar.setAttribute('aria-valuenow', String(Math.min(100, Math.round((words / goal) * 100))));
+    bar.setAttribute('aria-valuetext', `${fmt(words)} of ${fmt(goal)} words`);
   }
 
   function renderChart() {
@@ -412,24 +590,28 @@
     line.style.bottom = `calc(18px + (100% - 24px) * ${state.dailyGoal / max})`;
     line.title = `Daily goal: ${fmt(state.dailyGoal)}`;
     chart.appendChild(line);
+
+    const met = cols.filter((c) => c.words >= state.dailyGoal).length;
+    const total = cols.reduce((sum, c) => sum + c.words, 0);
+    chart.setAttribute('aria-label',
+      `Last 14 days: ${fmt(total)} words in total, daily goal met on ${met} of 14 days, ${fmt(cols[13].words)} words today.`);
   }
 
   function checkCelebrations(today, project) {
     const k = dateKey();
-    if (today >= state.dailyGoal && state.celebrated.daily !== k) {
-      state.celebrated.daily = k;
-      burst();
-      toast(`Daily goal reached! ${fmt(state.dailyGoal)} words 🎉`);
-      save();
-    }
-    if (project >= state.projectGoal && !state.celebrated.project) {
-      state.celebrated.project = true;
-      burst();
-      toast(`You hit your project goal of ${fmt(state.projectGoal)} words! 🏆`);
-      save();
-    } else if (project < state.projectGoal && state.celebrated.project) {
-      state.celebrated.project = false;
-    }
+    const dailyHit = today >= state.dailyGoal && state.celebrated.daily !== k;
+    const projectHit = project >= state.projectGoal && !state.celebrated.project;
+    if (project < state.projectGoal) state.celebrated.project = false;
+    if (!dailyHit && !projectHit) return;
+
+    // Each goal celebrates once (daily: once per day). If both land together, one big party.
+    if (dailyHit) state.celebrated.daily = k;
+    if (projectHit) state.celebrated.project = true;
+    celebrate(projectHit);
+    toast(projectHit
+      ? `You hit your project goal of ${fmt(state.projectGoal)} words! 🏆`
+      : `Daily goal reached! ${fmt(state.dailyGoal)} words 🎉`);
+    save();
   }
 
   function syncGoalInputs() {
@@ -545,7 +727,51 @@
     } catch { /* audio not available */ }
   }
 
+  const soundOn = () => state.a11y.sound !== false;
+
+  // One soft bell-like note: a sine plus a quieter octave above, fading out.
+  function bell(ctx, freq, start, length, volume, out) {
+    [[1, 1], [2, 0.3]].forEach(([mult, level]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = mult === 1 ? 'triangle' : 'sine';
+      osc.frequency.value = freq * mult;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(volume * level, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+      osc.connect(gain).connect(out);
+      osc.start(start);
+      osc.stop(start + length + 0.05);
+    });
+  }
+
+  // The goal jingle: a quick rising "ta-da" arpeggio, a sparkly chord and a few twinkles.
+  function tada(big = false) {
+    if (!soundOn() || !audioCtx) return;
+    try {
+      const ctx = audioCtx;
+      const out = ctx.createGain();
+      out.gain.value = 0.9;
+      out.connect(ctx.destination);
+      const t = ctx.currentTime + 0.03;
+
+      const run = big ? [784, 1047, 1319, 1568, 2093] : [784, 1047, 1319, 1568]; // G5 C6 E6 G6 (C7)
+      run.forEach((f, i) => bell(ctx, f, t + i * 0.075, 0.35, 0.16, out));
+
+      const chordAt = t + run.length * 0.075 + 0.04;
+      [1047, 1319, 1568, 2093].forEach((f) => bell(ctx, f, chordAt, big ? 1.6 : 1.1, 0.07, out));
+      if (big) bell(ctx, 523, chordAt, 1.6, 0.1, out); // a warm low C under the big one
+
+      const twinkles = big ? 9 : 5;
+      for (let i = 0; i < twinkles; i++) {
+        const f = 2600 + Math.random() * 1800;
+        bell(ctx, f, chordAt + 0.08 + i * 0.09 + Math.random() * 0.04, 0.18, 0.035, out);
+      }
+    } catch { /* audio not available */ }
+  }
+
   function chime() {
+    if (!soundOn()) return;
     try {
       const ctx = audioCtx;
       if (!ctx) return;
@@ -706,20 +932,290 @@
     setTheme(state.theme === 'nanowrimo' ? (state.prevTheme || 'kawaii') : 'nanowrimo');
   });
 
-  const panel = $('decorPanel');
-  function togglePanel(open) {
-    panel.hidden = !open;
-    $('decorBtn').setAttribute('aria-expanded', String(open));
+  // Drop-down panels (Decorate, Accessibility): one open at a time; Escape or clicking
+  // outside closes them, and Escape returns keyboard focus to the button.
+  const panels = [['decorBtn', 'decorPanel'], ['a11yBtn', 'a11yPanel']].map(([b, p]) => ({ btn: $(b), panel: $(p) }));
+  function togglePanel(which, open) {
+    which.panel.hidden = !open;
+    which.btn.setAttribute('aria-expanded', String(open));
   }
-  $('decorBtn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    togglePanel(panel.hidden);
-  });
+  for (const which of panels) {
+    which.btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = which.panel.hidden;
+      panels.forEach((p) => togglePanel(p, false));
+      togglePanel(which, open);
+    });
+  }
   document.addEventListener('click', (e) => {
-    if (!panel.hidden && !panel.contains(e.target)) togglePanel(false);
+    for (const p of panels) if (!p.panel.hidden && !p.panel.contains(e.target)) togglePanel(p, false);
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') togglePanel(false);
+    if (e.key !== 'Escape') return;
+    for (const p of panels) {
+      if (p.panel.hidden) continue;
+      const hadFocus = p.panel.contains(document.activeElement);
+      togglePanel(p, false);
+      if (hadFocus) p.btn.focus();
+    }
+  });
+
+  // ---------- accessibility options ----------
+  function applyA11y() {
+    const root = document.documentElement;
+    root.dataset.textSize = state.a11y.textSize;
+    root.dataset.motion = reduceMotion() ? 'reduce' : 'full';
+    root.toggleAttribute('data-easy-read', state.a11y.easyRead);
+    editor.spellcheck = state.a11y.spell;
+    $('title').spellcheck = state.a11y.spell;
+    $('optEasyRead').checked = state.a11y.easyRead;
+    $('optMotion').checked = reduceMotion();
+    $('optSpell').checked = state.a11y.spell;
+    $('optSound').checked = soundOn();
+    document.querySelectorAll('input[name="textSize"]').forEach((r) => { r.checked = r.value === state.a11y.textSize; });
+  }
+
+  $('optEasyRead').addEventListener('change', (e) => {
+    state.a11y.easyRead = e.target.checked;
+    applyTheme(); // swaps the fonts
+    applyA11y();
+    save();
+  });
+  $('optMotion').addEventListener('change', (e) => {
+    state.a11y.motion = e.target.checked;
+    applyA11y();
+    renderDeco();
+    save();
+  });
+  $('optSpell').addEventListener('change', (e) => {
+    state.a11y.spell = e.target.checked;
+    applyA11y();
+    save();
+  });
+  $('optSound').addEventListener('change', (e) => {
+    state.a11y.sound = e.target.checked;
+    if (e.target.checked) {
+      unlockAudio();
+      tada();
+    }
+    save();
+  });
+  $('celebrateTest').addEventListener('click', () => {
+    celebrate();
+    toast(reduceMotion() ? 'This is your goal jingle 🎉 (confetti is off with Reduce motion)' : 'This is how reaching a goal looks 🎉');
+  });
+  document.querySelectorAll('input[name="textSize"]').forEach((r) => {
+    r.addEventListener('change', () => {
+      state.a11y.textSize = r.value;
+      applyA11y();
+      save();
+    });
+  });
+
+  // ---------- grammar check ----------
+  // Spelling is handled offline by the browser/desktop spellchecker. Grammar suggestions come
+  // from LanguageTool's free public API, only when the person presses "Check grammar" and has agreed.
+  const LT_URL = 'https://api.languagetool.org/v2/check';
+  const LT_MAX = 18000; // the free service accepts up to 20 KB per request
+  let issues = [];      // { offset, length, original, message, replacements }
+
+  const grammarPanel = $('grammarPanel');
+  const grammarStatus = (msg) => { $('grammarStatus').textContent = msg; };
+
+  function textToCheck() {
+    const text = editor.value;
+    let start = editor.selectionStart;
+    let end = editor.selectionEnd;
+    if (end > start) return { start, text: text.slice(start, Math.min(end, start + LT_MAX)), scope: 'selection' };
+    if (text.length <= LT_MAX) return { start: 0, text, scope: 'all' };
+    // Long drafts: check the most recent writing, starting at a paragraph break if there's one nearby.
+    start = text.length - LT_MAX;
+    const brk = text.indexOf('\n', start);
+    if (brk !== -1 && brk < start + 2000) start = brk + 1;
+    return { start, text: text.slice(start), scope: 'recent' };
+  }
+
+  function englishVariant() {
+    const lang = (navigator.language || 'en-US').replace('_', '-');
+    return /^en-(US|GB|AU|CA|NZ|ZA)$/i.test(lang) ? lang : 'en-US';
+  }
+
+  async function runGrammarCheck() {
+    const { start, text, scope } = textToCheck();
+    if (!text.trim()) {
+      grammarStatus('Write something first, then check it ✨');
+      return;
+    }
+    if (!navigator.onLine) {
+      grammarStatus('You seem to be offline. Grammar check needs the internet (spelling squiggles still work).');
+      return;
+    }
+    const btn = $('grammarBtn');
+    btn.disabled = true;
+    issues = [];
+    $('grammarList').replaceChildren();
+    grammarStatus('Checking your writing… 🔍');
+    try {
+      // Plain form data keeps this a "simple" request, which the public API allows from any app.
+      const body = new URLSearchParams({ text, language: 'auto', preferredVariants: englishVariant() });
+      const res = await fetch(LT_URL, { method: 'POST', body });
+      if (res.status === 429) throw new Error('busy');
+      if (!res.ok) throw new Error('http');
+      const data = await res.json();
+      issues = data.matches.map((m) => ({
+        offset: start + m.offset,
+        length: m.length,
+        original: text.slice(m.offset, m.offset + m.length),
+        message: m.message,
+        replacements: m.replacements.slice(0, 3).map((r) => r.value),
+      }));
+      const where = { selection: 'in your selection', all: '', recent: 'in your most recent writing (about the last 3,000 words). Select text to check another part' }[scope];
+      grammarStatus(issues.length
+        ? `Found ${issues.length} suggestion${issues.length === 1 ? '' : 's'}${where ? ' ' + where : ''}.`
+        : `All clear! No suggestions${where ? ' ' + where : ''} ✨`);
+      renderIssues();
+    } catch (err) {
+      grammarStatus(err.message === 'busy'
+        ? 'The grammar helper is busy right now. Wait a minute and try again.'
+        : 'Couldn’t reach the grammar helper. Check your internet connection and try again.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Find where an issue's text is now, in case the writing changed since the check.
+  function locate(issue) {
+    const text = editor.value;
+    if (text.slice(issue.offset, issue.offset + issue.length) === issue.original) return issue.offset;
+    let best = -1;
+    let from = Math.max(0, issue.offset - 500);
+    for (;;) {
+      const i = text.indexOf(issue.original, from);
+      if (i === -1 || i > issue.offset + 500) break;
+      if (best === -1 || Math.abs(i - issue.offset) < Math.abs(best - issue.offset)) best = i;
+      from = i + 1;
+    }
+    return best;
+  }
+
+  function selectIssue(issue) {
+    const at = locate(issue);
+    if (at === -1) {
+      toast('That text has changed. Press Check grammar again ✍️');
+      return -1;
+    }
+    editor.focus();
+    editor.setSelectionRange(at, at + issue.length);
+    return at;
+  }
+
+  function applyFix(index, value) {
+    const issue = issues[index];
+    const at = selectIssue(issue);
+    if (at === -1) return;
+    // execCommand keeps Ctrl+Z working and fires the usual input event (word counts, saving).
+    const ok = value
+      ? document.execCommand('insertText', false, value)
+      : document.execCommand('delete');
+    if (!ok) {
+      editor.setRangeText(value, at, at + issue.length, 'end');
+      editor.dispatchEvent(new Event('input'));
+    }
+    const delta = value.length - issue.length;
+    issues.splice(index, 1);
+    issues = issues
+      .filter((i) => i.offset >= at + issue.length || i.offset + i.length <= at) // drop overlapping ones
+      .map((i) => (i.offset > at ? { ...i, offset: i.offset + delta } : i));
+    renderIssues(index);
+    grammarStatus(issues.length ? `Fixed! ${issues.length} suggestion${issues.length === 1 ? '' : 's'} left.` : 'All fixed! ✨');
+  }
+
+  function renderIssues(focusIndex) {
+    const list = $('grammarList');
+    list.replaceChildren();
+    issues.forEach((issue, index) => {
+      const li = document.createElement('li');
+      li.className = 'issue';
+      li.tabIndex = -1;
+
+      const msg = document.createElement('p');
+      msg.className = 'issue-msg';
+      msg.textContent = issue.message;
+
+      // a little context around the problem, with the problem highlighted
+      const at = Math.max(0, locate(issue));
+      const ctx = document.createElement('p');
+      ctx.className = 'issue-context';
+      const before = editor.value.slice(Math.max(0, at - 30), at);
+      const after = editor.value.slice(at + issue.length, at + issue.length + 30);
+      const mark = document.createElement('mark');
+      mark.textContent = issue.original || '·';
+      ctx.append((at > 30 ? '…' : '') + before, mark, after + (after.length === 30 ? '…' : ''));
+
+      const actions = document.createElement('div');
+      actions.className = 'issue-actions';
+      for (const r of issue.replacements) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn small';
+        b.textContent = r === '' ? 'Remove it' : r;
+        b.setAttribute('aria-label', r === '' ? `Remove “${issue.original}”` : `Change “${issue.original}” to “${r}”`);
+        b.addEventListener('click', () => applyFix(index, r));
+        actions.appendChild(b);
+      }
+      const show = document.createElement('button');
+      show.type = 'button';
+      show.className = 'btn ghost small';
+      show.textContent = 'Show me';
+      show.addEventListener('click', () => selectIssue(issue));
+      const ignore = document.createElement('button');
+      ignore.type = 'button';
+      ignore.className = 'btn ghost small';
+      ignore.textContent = 'Ignore';
+      ignore.addEventListener('click', () => {
+        issues.splice(index, 1);
+        renderIssues(index);
+        grammarStatus(issues.length ? `${issues.length} suggestion${issues.length === 1 ? '' : 's'} left.` : 'All done! ✨');
+      });
+      actions.append(show, ignore);
+
+      li.append(msg, ctx, actions);
+      list.appendChild(li);
+    });
+    // after a fix or ignore, keep keyboard users in the list instead of losing their place
+    if (focusIndex !== undefined) {
+      const items = list.children;
+      (items[Math.min(focusIndex, items.length - 1)] || $('grammarStatus')).focus?.();
+    }
+  }
+
+  function openGrammar() {
+    grammarPanel.hidden = false;
+    if (!state.grammarOk) {
+      $('grammarConsent').hidden = false;
+      grammarStatus('');
+      $('grammarAgree').focus();
+      return;
+    }
+    runGrammarCheck();
+  }
+
+  $('grammarBtn').addEventListener('click', openGrammar);
+  $('grammarAgree').addEventListener('click', () => {
+    state.grammarOk = true;
+    save();
+    $('grammarConsent').hidden = true;
+    runGrammarCheck();
+  });
+  $('grammarDecline').addEventListener('click', () => {
+    grammarPanel.hidden = true;
+    $('grammarBtn').focus();
+  });
+  $('grammarClose').addEventListener('click', () => {
+    grammarPanel.hidden = true;
+    issues = [];
+    $('grammarList').replaceChildren();
+    $('grammarBtn').focus();
   });
 
   // ---------- init ----------
@@ -728,6 +1224,7 @@
   state.lastCount = countWords(state.text);
   buildSwatches();
   applyTheme();
+  applyA11y();
   syncGoalInputs();
   renderStats();
   renderGoals();
